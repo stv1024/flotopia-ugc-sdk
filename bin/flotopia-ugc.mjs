@@ -26,7 +26,9 @@ await COMMANDS[cmd]();
 
 // ------------------------------------------------------------------ pack
 
-// every file under dir but ugc.json and dotfiles is a file of the package
+// every file under dir is a file of the package, but ugc.json, dotfiles and a static host's own config
+// (_headers, _redirects: Cloudflare, Netlify)
+const NOT_PACKAGE = new Set(['ugc.json', '_headers', '_redirects']);
 function filesOf(dir) {
   const out = [];
   const walk = (d) => {
@@ -38,7 +40,7 @@ function filesOf(dir) {
     }
   };
   walk(dir);
-  return out.filter((f) => f !== 'ugc.json').sort();
+  return out.filter((f) => !NOT_PACKAGE.has(f)).sort();
 }
 
 async function pack() {
