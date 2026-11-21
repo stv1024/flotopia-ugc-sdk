@@ -81,12 +81,13 @@ Rules that matter:
   near your keep-out. It saves the player's battery.
 - **Same for every player.** No clock but `time`, no randomness but `seed`. A player's own effect may stay local
   if it is small and goes back after a while.
-- **No allocation in the tick loop** if you can help it (AssemblyScript: preallocate; use `unchecked()` in hot loops).
+- **No allocation in the tick loop** if you can help it (AssemblyScript: preallocate; use `unchecked()` in hot loops;
+  names you pass every tick, a uniform's or a node's: `new fc.Name("uTime")` once, then pass that).
 - **Ids** from the host are ≥ 1; < 0 is an error (docs/abi.md 3.6). Log it.
 - **Uploads**: `bufferWrite` at most 1 MB a tick. Write only what moved.
 - **Shaders** (`shader` capability): written like three.js `ShaderMaterial`; only constant-bound `for` loops;
   the host's light (`fcSunDir`, `fcEnv()`, …) and frame (`fcToLocal`) uniforms: docs/abi.md 3.5. Do not declare
-  the host's uniforms yourself.
+  the host's uniforms yourself; do declare your own (the ones in the material's `uniforms`).
 - **The player.** You do not move the player. A `keepout` grid keeps them out of a solid (and the camera's arm
   short of it); `focus` takes the camera for a while (Esc always gives it back).
 - **Matrices** are column-major, island frame.
