@@ -273,12 +273,15 @@ A material is one of:
 - A shader that made the game lose its WebGL context is not used again on that device; the mesh gets a
   plain material in its place.
 
-Host uniform groups (the host declares them; do not declare them yourself):
+Host uniform groups (the host declares them; do not declare them yourself). Shaders work in the **world
+frame** (three.js's `modelMatrix` takes a vertex to the world): the directions here are world directions;
+`fcToLocal` takes a world point to the island frame (for matrices your code computed in the island frame,
+e.g. a light map's camera).
 
 | group | uniforms |
 |---|---|
 | `frame` | `mat4 fcToLocal` (world → island), `mat4 fcToWorld`, `float fcTime` (world clock, s) |
-| `light` | `vec3 fcSunDir`, `vec3 fcSunCol` (× intensity / π), `vec3 fcHemiSky`, `vec3 fcHemiGround`, `float fcEnvI`, `float fcNight`; fragment: `vec3 fcEnv(vec3 dir, float roughness)` (the sky's light) |
+| `light` | `vec3 fcSunDir` (toward the sun, or the moon at night), `vec3 fcSunCol` (its colour × intensity / π), `vec3 fcHemiSky`, `vec3 fcHemiGround` (the hemisphere light, × intensity / π), `float fcEnvI` (the sky light's intensity: the scene's environment intensity, 0.35 on a clear day, more under cloud), `float fcNight` (0 day … 1 night); fragment: `vec3 fcEnv(vec3 dir, float roughness)` (the sky's light from a direction, not yet × `fcEnvI`) |
 | `refract` | (fragment) `sampler2D fcScene` (the picture so far), `sampler2D fcDepth` (its depth), `vec2 fcScreen` (px), `vec3 fcCamFwd`, `float fcNear`, `float fcFar` |
 
 ### 3.6 Errors

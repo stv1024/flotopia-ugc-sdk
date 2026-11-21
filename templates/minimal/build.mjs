@@ -1,6 +1,7 @@
 // Builds the minimal island into dist/: the shell, the near look, the ground, the manifest. Then
 // `npx asc ...` makes dist/island.wasm and `flotopia-ugc pack dist` writes the hashes (npm run build does all).
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { deflateSync, crc32 } from 'node:zlib';
 import { writeGlb } from '../../lib/glb.mjs';
 
 const R = 12, DECK = 0.5, N = 48;
@@ -28,14 +29,34 @@ writeFileSync('dist/ground.json', JSON.stringify({
   colliders: [{ poly: circle(1.6, 8), y0: DECK, y1: 4.2 }],
   arrive: [0, DECK, 8, Math.PI],
 }));
+// the cover (the catalog's picture): here a plain PNG; a real island's is a screenshot (flotopia-ugc shot)
+writeFileSync('dist/cover.png', png(256, 256, (x, y) => (Math.hypot(x - 128, y - 150) < 70 ? [235, 140, 50] : y > 150 ? [40, 120, 200] : [150, 200, 240])));
 writeFileSync('dist/ugc.json', JSON.stringify({
   schema: 'flotopia-ugc/1',
   title: { zh: '最小的岛', en: 'Minimal Island' },
   footprint: { shape: 'circle', r: R },
+  cover: 'cover.png',
   shell: 'shell.glb',
   lods: [{ file: 'near.glb' }],
   ground: 'ground.json',
   runtime: { wasm: 'island.wasm', activate: 120, release: 180, caps: [] },
   files: {},
 }, null, 2));
-console.log('dist/: shell.glb, near.glb, ground.json, ugc.json');
+console.log('dist/: shell.glb, near.glb, ground.json, cover.png, ugc.json');
+
+// a PNG of w × h, rgb(x, y) → [r, g, b]
+function png(w, h, rgb) {
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) raw.set(rgb(x, y), y * (w * 3 + 1) + 1 + x * 3);
+  const chunk = (type, data) => {
+    const b = Buffer.alloc(12 + data.length);
+    b.writeUInt32BE(data.length, 0);
+    b.write(type, 4, 'ascii');
+    data.copy(b, 8);
+    b.writeUInt32BE(crc32(b.subarray(4, 8 + data.length)), 8 + data.length);
+    return b;
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}

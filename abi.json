@@ -1,0 +1,469 @@
+{
+  "schema": "flotopia-ugc/1",
+  "imports": {
+    "fc.log": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.buffer": {
+      "params": [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.buffer_write": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.geometry": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.geometry_range": {
+      "params": [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.texture": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.target": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": "target"
+    },
+    "fc.material": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.uniform": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.uniform_tex": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.mesh": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.mesh_matrix": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.mesh_visible": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.node_visible": {
+      "params": [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.pass": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": "target"
+    },
+    "fc.pass_camera": {
+      "params": [
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": "target"
+    },
+    "fc.pass_run": {
+      "params": [
+        "i32"
+      ],
+      "result": null,
+      "capability": "target"
+    },
+    "fc.act": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": "i32",
+      "capability": null
+    },
+    "fc.act_enable": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "fc.focus": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": "focus"
+    },
+    "fc.focus_camera": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": "focus"
+    },
+    "fc.focus_cursor": {
+      "params": [
+        "i32"
+      ],
+      "result": null,
+      "capability": "focus"
+    },
+    "fc.focus_end": {
+      "params": [],
+      "result": null,
+      "capability": "focus"
+    },
+    "fc.panel": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": "focus"
+    },
+    "fc.keepout": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": "keepout"
+    },
+    "fc.sleep": {
+      "params": [
+        "f32",
+        "f32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "env.abort": {
+      "params": [
+        "i32",
+        "i32",
+        "i32",
+        "i32"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "env.trace": {
+      "params": [
+        "i32",
+        "i32",
+        "f64",
+        "f64",
+        "f64",
+        "f64",
+        "f64"
+      ],
+      "result": null,
+      "capability": null
+    },
+    "env.seed": {
+      "params": [],
+      "result": "f64",
+      "capability": null
+    }
+  },
+  "exports": {
+    "fc_alloc": {
+      "params": [
+        "i32"
+      ],
+      "result": "i32"
+    },
+    "fc_init": {
+      "params": [
+        "i32"
+      ],
+      "result": null
+    },
+    "fc_tick": {
+      "params": [
+        "i32",
+        "i32"
+      ],
+      "result": null
+    }
+  },
+  "capabilities": [
+    "shader",
+    "target",
+    "refract",
+    "keepout",
+    "focus"
+  ],
+  "inbox": {
+    "bytes": 16384,
+    "offsets": {
+      "time": 0,
+      "dt": 8,
+      "flags": 12,
+      "eye": 16,
+      "fwd": 28,
+      "feet": 40,
+      "vel": 52,
+      "mode": 64,
+      "sun": 68,
+      "night": 80,
+      "screen": 84,
+      "count": 92,
+      "events": 96
+    },
+    "eventBytes": 48,
+    "maxEvents": 339,
+    "flags": {
+      "FOCUS": 1,
+      "PLAYER": 2,
+      "SUN": 4
+    },
+    "modes": {
+      "none": 0,
+      "walk": 1,
+      "air": 2,
+      "fly": 3,
+      "down": 4,
+      "swim": 5,
+      "ride": 6,
+      "other": 7
+    },
+    "events": {
+      "ACT": 1,
+      "FOCUS_END": 2,
+      "POINTER_DOWN": 3,
+      "POINTER_MOVE": 4,
+      "POINTER_UP": 5,
+      "WHEEL": 6,
+      "KEY": 7,
+      "PANEL": 8,
+      "GAMEPAD": 9
+    }
+  },
+  "errors": {
+    "ARGS": -1,
+    "LIMIT": -2,
+    "CAP": -3,
+    "MISSING": -4
+  },
+  "fuel": {
+    "init": 4000000000,
+    "tick": 400000000
+  },
+  "limits": {
+    "manifestBytes": 65536,
+    "files": 64,
+    "shellBytes": 314572.8,
+    "shellTris": 2000,
+    "nearBytes": 16777216,
+    "runtimeBytes": 8388608,
+    "coverSize": 1024,
+    "textureSize": 2048,
+    "titleChars": 40,
+    "footprintMax": 200,
+    "activateMax": 400,
+    "lods": 4,
+    "nearDraws": 30,
+    "nearTris": 500000,
+    "nearGpu": 67108864,
+    "nodeDepth": 32,
+    "runDraws": 30,
+    "runTris": 200000,
+    "runGpu": 67108864,
+    "uploadTick": 1048576,
+    "targets": 2,
+    "targetPixelsOver": 1048576,
+    "memoryPages": 1024,
+    "cells": 256,
+    "polyPoints": 256,
+    "colliders": 512,
+    "gridPoints": 4096,
+    "trees": 400,
+    "treeScaleMin": 0.2,
+    "treeScaleMax": 3,
+    "keepoutPoints": 4194304,
+    "shaderBytes": 32768,
+    "shaderIterations": 1024,
+    "shaderSamples": 64,
+    "shaderUniforms": 32,
+    "shaderSamplers": 8,
+    "logsPerSecond": 50
+  },
+  "gltfExtensions": [
+    "EXT_meshopt_compression",
+    "KHR_mesh_quantization",
+    "KHR_texture_transform",
+    "KHR_materials_emissive_strength",
+    "EXT_mesh_gpu_instancing"
+  ],
+  "cityMaterials": [
+    "paving",
+    "plaza",
+    "concrete",
+    "plaster",
+    "wood",
+    "sand",
+    "grass",
+    "metal",
+    "hull",
+    "glow",
+    "gloss",
+    "fabric"
+  ],
+  "trees": [
+    "palmCoconut",
+    "palmRoyal",
+    "rainTree",
+    "frangipani",
+    "almond",
+    "shrub",
+    "bougainvillea",
+    "grass",
+    "hedge",
+    "forestTree",
+    "treeFern",
+    "fern",
+    "birch"
+  ],
+  "surfaces": [
+    "deck",
+    "grass",
+    "sand",
+    "wood",
+    "water"
+  ],
+  "shader": {
+    "includes": [
+      "packing"
+    ],
+    "hostUniforms": {
+      "frame": {
+        "fcToLocal": "mat4",
+        "fcToWorld": "mat4",
+        "fcTime": "float"
+      },
+      "light": {
+        "fcSunDir": "vec3",
+        "fcSunCol": "vec3",
+        "fcHemiSky": "vec3",
+        "fcHemiGround": "vec3",
+        "fcEnvI": "float",
+        "fcNight": "float"
+      },
+      "refract": {
+        "fcScene": "sampler2D",
+        "fcDepth": "sampler2D",
+        "fcScreen": "vec2",
+        "fcCamFwd": "vec3",
+        "fcNear": "float",
+        "fcFar": "float"
+      }
+    },
+    "threeBuiltins": [
+      "position",
+      "normal",
+      "uv",
+      "color",
+      "modelMatrix",
+      "viewMatrix",
+      "projectionMatrix",
+      "modelViewMatrix",
+      "normalMatrix",
+      "cameraPosition",
+      "isOrthographic"
+    ],
+    "uniformTypes": {
+      "float": 1,
+      "vec2": 2,
+      "vec3": 3,
+      "vec4": 4,
+      "mat3": 9,
+      "mat4": 16,
+      "int": 1,
+      "sampler2D": 0
+    }
+  }
+}
