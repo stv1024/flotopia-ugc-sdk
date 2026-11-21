@@ -18,7 +18,10 @@ function disc(r, y, y0, col) {
   for (let i = 0; i < N; i++) { const j = (i + 1) % N; I.push(b + 2 * i, b + 2 * j, b + 2 * i + 1, b + 2 * j, b + 2 * j + 1, b + 2 * i + 1); }
   const n = P.length / 3, Nn = new Float32Array(3 * n);
   for (let i = 0; i < n; i++) { const x = P[3 * i], z = P[3 * i + 2], top = i <= N; const l = Math.hypot(x, z) || 1; Nn.set(top ? [0, 1, 0] : [x / l, 0, z / l], 3 * i); }
-  return { positions: new Float32Array(P), normals: Nn, colors: new Float32Array(C), indices: new Uint16Array(I) };
+  // uv: planar, metres × 0.25 (the city's materials: 1 uv = 4 m)
+  const uv = new Float32Array(2 * n);
+  for (let i = 0; i < n; i++) { uv[2 * i] = P[3 * i] * 0.25; uv[2 * i + 1] = P[3 * i + 2] * 0.25; }
+  return { positions: new Float32Array(P), normals: Nn, colors: new Float32Array(C), uvs: uv, indices: new Uint16Array(I) };
 }
 
 writeFileSync('dist/shell.glb', writeGlb([{ name: 'deck', material: { color: [1, 1, 1] }, ...disc(R, DECK, -1, [0.85, 0.84, 0.8]) }]));
