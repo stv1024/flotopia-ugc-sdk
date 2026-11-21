@@ -8,7 +8,7 @@ approved islands in the city; every player who comes near loads yours from your 
 
 - [`AGENTS.md`](AGENTS.md): how to make one (written for coding agents; people can read it too).
 - [`docs/abi.md`](docs/abi.md): the contract — the package, the host interface, the limits.
-- `assembly/fc.ts`: AssemblyScript bindings. `lib/glb.mjs`: a glTF writer. `templates/minimal`: a small island.
+- `assembly/fc.ts`: AssemblyScript bindings. `lib/glb.mjs`: a glTF writer. `templates/minimal`: a small island; `templates/showcase`: every capability in one small island.
 - `npx flotopia-ugc pack | check | serve | shot`.
 
 Status: `flotopia-ugc/1`, the first version, in its pilot.
