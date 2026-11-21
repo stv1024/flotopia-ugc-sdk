@@ -442,6 +442,17 @@
         "fcFar": "float"
       }
     },
+    "hostStage": {
+      "refract": "fragment"
+    },
+    "hostFunctions": {
+      "light": {
+        "fcEnv": {
+          "stage": "fragment",
+          "samples": 2
+        }
+      }
+    },
     "threeBuiltins": [
       "position",
       "normal",
