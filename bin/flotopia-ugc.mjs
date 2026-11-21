@@ -3,7 +3,7 @@
 //   pack <dir>                      write the files' SHA-256 and sizes into <dir>/ugc.json
 //   check <dir | url>               every check the game makes, and a trial run of the code
 //   serve <dir> [--port 8787]       serve the package with CORS, for the game to load (?ugc=...)
-//   shot <game-url> <out.jpg> [--wait ms] [--size WxH]   a screenshot of the game (headless)
+//   shot <game-url> <out.jpg> [--wait ms] [--size WxH] [--eval js] [--then ms]   a screenshot of the game (headless)
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join, relative, extname, resolve, sep } from 'node:path';
@@ -111,9 +111,9 @@ async function serve() {
 async function shot() {
   const { screenshot } = await import('../lib/shot.mjs');
   const [url, out] = pos;
-  if (!url || !out) fail('shot <game-url> <out.jpg> [--wait ms] [--size WxH]');
+  if (!url || !out) fail('shot <game-url> <out.jpg> [--wait ms] [--size WxH] [--eval js] [--then ms]');
   const [w, h] = String(opts.size ?? '1280x720').split('x').map(Number);
-  const r = await screenshot(url, out, { wait: +(opts.wait ?? 4000), width: w, height: h });
+  const r = await screenshot(url, out, { wait: +(opts.wait ?? 4000), width: w, height: h, evaluate: opts.eval ?? null, then: +(opts.then ?? 2000) });
   for (const line of r.log) console.log(line);
   console.log(`${out}${r.errors.length ? `, ${r.errors.length} page error(s)` : ''}`);
   for (const e of r.errors) console.log(`  ${e}`);
