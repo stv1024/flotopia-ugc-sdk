@@ -75,7 +75,8 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
     the vertex colour (`COLOR_0`) and use planar uv in metres × about 0.25 (1 uv = 4 m). `glow` lights
     up at night by its vertex colour.
   - any other: glTF PBR (base colour, metallic, roughness, emissive, textures), drawn in the city's light.
-- Node names are yours; `node_visible()` shows and hides a node of the near look by name.
+- Node names are yours; `node_visible()` shows and hides a node of the near look by name. When the code
+  stops (the player went past `release`, or it trapped), every node it hid shows again.
 - Shadows: the near look casts and takes shadows; the shell does neither.
 
 ### 2.3 `ground.json`
@@ -95,9 +96,10 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
   `{ "const": y }`, `{ "plane": [a, b, c] }` (`y = a + b·x + c·z`), or
   `{ "grid": { "x0", "z0", "step", "nx", "nz", "h": [nx·nz numbers, row by row along x] } }`.
   `surf`: `deck` (default), `grass`, `sand`, `wood`, `water`. Cells go from their height down to the hull.
-  A step is two cells.
+  A step is two cells. Cells may overlap: at a point, a player stands on the highest one they can reach.
 - A collider is a prism: a polygon from `y0` to `y1`.
-- `arrive`: where a player coming to the island stands, and the heading (rad) they face.
+- `arrive`: where a player coming to the island stands, and the heading (rad) they face: 0 faces +z, π/2
+  faces +x (the forward direction is (sin h, 0, cos h), island frame).
 - At most 256 cells and 512 colliders.
 
 ### 2.4 `things.json`
@@ -147,8 +149,16 @@ the player is within `activate` m (until `release` m). It can do nothing but cal
 
 ### 3.2 Fuel, ticks and sleep
 
-- The host meters the module: each call has fuel, about one unit per instruction. `fc_init` gets
-  4 000 M, each `fc_tick` 400 M. A call that runs out traps. Spread long work over ticks.
+- The host meters the module: each call has fuel. `fc_init` gets 4 000 M, each `fc_tick` 400 M. A call
+  that runs out traps. Spread long work over ticks.
+- How fuel is counted: on entering a function body, all of its instructions outside loops are charged at
+  once, those of `if` branches that will not run too; on each pass through a loop body (each iteration),
+  all the instructions of that body outside inner loops. `memory.copy`, `memory.fill`, `memory.init`: one
+  more unit per 64 bytes; the table operations: per 8 entries. So a call costs about the size of its code,
+  not the instructions run: a small function with a big rarely-taken branch is dear in a hot loop. In
+  AssemblyScript, `Math.sin` is about 370 units a call, an array access through a typed array several
+  (bounds checks): in hot loops use `unchecked()`, `load<f32>`/`store<f32>` on raw pointers, and keep the
+  loop bodies small. `flotopia-ugc check` prints what init and the dearest tick used.
 - A call that traps (out of fuel, `unreachable`, out of bounds, `abort`) ends the instance. The host
   makes a new one (from `fc_init`, at the world time of then) at most twice in 10 minutes, then gives up
   on this version on this device. The island's meshes from the package stay; what the code made goes.
@@ -265,13 +275,14 @@ A material is one of:
 
 - Loops: only `for` with an `int` counter, a constant start and bound (numbers, `#define`d numbers,
   `const int`), `++`/`--`/`+= const`, the counter not changed in the body. No `while`, no `do`.
-  Nested loops multiply: at most 1 024 iterations an invocation in all.
+  All the runs of all loop bodies together, an invocation: at most 1 024 (a loop of 32 in a loop of 32:
+  32 + 1 024, too many). A loop in a function counts each time the function is called.
 - Preprocessor: only `#define NAME <number>` and `#include <packing>`. No macros with arguments, no `#if`.
-- Uniforms: only the ones in `uniforms` and the host's groups. At most 32 uniforms and 8 samplers.
+- Uniforms: only the ones in `uniforms` and the host's groups. Declare yours in the source as well
+  (`uniform vec4 uFlesh;`), with the type `uniforms` gives; do not declare the host's. At most 32 uniforms
+  and 8 samplers (the host's count). Names that start with `fc` are the host's.
   Texture reads (`texture`, `textureLod`, `texelFetch`): at most 64 an invocation, loops counted.
 - At most 32 KB of source a stage.
-- A shader that made the game lose its WebGL context is not used again on that device; the mesh gets a
-  plain material in its place.
 
 Host uniform groups (the host declares them; do not declare them yourself). Shaders work in the **world
 frame** (three.js's `modelMatrix` takes a vertex to the world): the directions here are world directions;

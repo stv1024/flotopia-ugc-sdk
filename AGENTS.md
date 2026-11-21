@@ -71,8 +71,10 @@ Build: `npx asc assembly/index.ts -O3 --runtime incremental --maximumMemory 1024
 
 Rules that matter:
 
-- **Fuel.** `fc_init` has about 4 000 M instructions, each `fc_tick` 400 M. Running out kills the instance. Split
-  heavy work over ticks; a tick should take a few ms.
+- **Fuel.** `fc_init` has 4 000 M units of fuel, each `fc_tick` 400 M. Running out kills the instance. Split
+  heavy work over ticks; a tick should take a few ms. Fuel counts code size, not instructions run (abi.md 3.2):
+  a function's whole body is charged when it is entered, a loop's whole body each pass. Keep hot loops small,
+  use `unchecked()` or raw `load`/`store`, and do not call `Math.sin` and the like in them when a table will do.
 - **One tick at a time**, about one a frame; what you do shows one frame later. `dt` is the time since your last
   tick (it may be large after a pause: clamp it).
 - **Sleep** when nothing moves: `fc.sleep(0.5, 1.0)` ticks only every 0.5 s till an event or the player comes

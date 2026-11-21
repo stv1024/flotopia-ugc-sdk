@@ -17,6 +17,7 @@ for (let i = 0; i < rest.length; i++) {
   else pos.push(a);
 }
 
+const NOT_PACKAGE = new Set(['ugc.json', '_headers', '_redirects']);
 const COMMANDS = { pack, check, serve, shot };
 if (!COMMANDS[cmd]) {
   console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 6).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
@@ -27,8 +28,7 @@ await COMMANDS[cmd]();
 // ------------------------------------------------------------------ pack
 
 // every file under dir is a file of the package, but ugc.json, dotfiles and a static host's own config
-// (_headers, _redirects: Cloudflare, Netlify)
-const NOT_PACKAGE = new Set(['ugc.json', '_headers', '_redirects']);
+// (_headers, _redirects: Cloudflare, Netlify: NOT_PACKAGE, at the top)
 function filesOf(dir) {
   const out = [];
   const walk = (d) => {
@@ -65,7 +65,7 @@ async function pack() {
 async function check() {
   const { checkPackage } = await import('../lib/check-package.mjs');
   const where = pos[0] ?? '.';
-  const r = await checkPackage(where, { seed: +(opts.seed ?? 1), ticks: +(opts.ticks ?? 120) });
+  const r = await checkPackage(where, { seed: +(opts.seed ?? 1), ticks: +(opts.ticks ?? 600) });
   for (const line of r.report) console.log(line);
   if (r.errors.length) {
     console.log(`\n${r.errors.length} error(s):`);
