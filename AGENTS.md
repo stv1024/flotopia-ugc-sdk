@@ -104,6 +104,7 @@ Rules that matter:
 Any static https host with CORS: Cloudflare (Workers static assets or Pages; a `_headers` file with
 `/*` → `Access-Control-Allow-Origin: *`; `pack` leaves `_headers` and `_redirects` out of the package),
 GitHub Pages (sends `*` already), S3 with a CORS rule. Then `check <the URL of ugc.json>`: it reads every
-file from there, as the game will. Name files by
+file from there, as the game will. The files are hashed byte for byte: if they go through git, mark them
+`-text` in `.gitattributes` (or git may change their line ends, and the game will refuse them). Name files by
 content if you can (a new version's files next to the old ones): the game keeps using the approved version
 till the platform approves the new one.
