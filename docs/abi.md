@@ -75,6 +75,7 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
     the vertex colour (`COLOR_0`) and use planar uv in metres × about 0.25 (1 uv = 4 m). `glow` lights
     up at night by its vertex colour.
   - any other: glTF PBR (base colour, metallic, roughness, emissive, textures), drawn in the city's light.
+    `extras.envMapIntensity` (0–4, default 1): how much of the sky's light it takes and reflects.
 - Node names are yours; `node_visible()` shows and hides a node of the near look by name. When the code
   stops (the player went past `release`, or it trapped), every node it hid shows again.
 - Shadows: the near look casts and takes shadows; the shell does neither.
