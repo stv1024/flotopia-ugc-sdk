@@ -1,0 +1,8 @@
+{
+  "name": "minimal-island",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs && asc assembly/index.ts -O3 --runtime incremental --maximumMemory 1024 -o dist/island.wasm && node ../../bin/flotopia-ugc.mjs pack dist"
+  }
+}
