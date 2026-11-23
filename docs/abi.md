@@ -5,6 +5,11 @@ Flotopia game in the player's browser. Everything here is checked by the host; `
 runs the same checks on your computer.
 
 Machine-readable copy: [`abi.json`](../abi.json). AssemblyScript bindings: [`assembly/fc.ts`](../assembly/fc.ts).
+How the host behaves within it, in numbers (the player, the city's materials, the trees, the sun):
+[`city.md`](city.md). A worked `ground.json`: [`ground.md`](ground.md).
+
+Till Flotopia opens to the public, this contract changes when it must, without keeping the old: the host takes
+only the current version, and a package made for an older one is changed to match.
 
 ## 1. Frames and units
 
@@ -12,6 +17,9 @@ Machine-readable copy: [`abi.json`](../abi.json). AssemblyScript bindings: [`ass
 - **Island frame**: the origin is the centre of the island's slot at sea level (`y = 0` is the water),
   axes as the world's turned about `y` by the slot's rotation. Everything in the package and every
   position the host gives or takes is in the island frame.
+- **`+z` is the island's front** (the slot turns it into the city: put the entrance and the best view
+  there). Seen from the front (at `+z`, looking toward `−z`), `+x` is on the right.
+- A heading `h` (rad) faces `(sin h, 0, cos h)`: 0 faces `+z`, π/2 faces `+x`.
 - City constants: the city's decks are at `y = 0.5`; island hulls go down to `y = -3.5`.
 
 ## 2. The package
@@ -54,7 +62,7 @@ The host fetches with `credentials: 'omit'` and no referrer.
 |---|---|
 | `schema` | `"flotopia-ugc/1"` |
 | `title` | `{ zh, en }`, each 1–40 characters |
-| `footprint` | `{ "shape": "circle", "r" }` or `{ "shape": "rect", "w", "d" }` (metres, centred on the origin). Everything of the island stays inside it (cells, colliders, meshes' bounds, keep-out). The platform gives you a slot this big |
+| `footprint` | `{ "shape": "circle", "r" }` or `{ "shape": "rect", "w", "d" }` (metres, centred on the origin; `w` along `x`, `d` along `z`). Everything of the island stays inside it (cells, colliders, meshes' bounds, keep-out). The platform gives you a slot this big |
 | `cover` | a PNG, JPEG or WebP, at most 1024 × 1024 |
 | `shell` | glTF binary, the far look: one material, vertex colours, at most 2 000 triangles, no textures |
 | `lods` | the near look: glTF binaries, finest first (`{ "file", "until"? }`: `until` m, the camera this far or more uses the next one) |
@@ -71,11 +79,14 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
   `KHR_materials_emissive_strength`, `EXT_mesh_gpu_instancing`. Any other is an error.
 - Materials:
   - named `fc:<name>`: the city's own material (its look, its night lights). Names: `paving`, `plaza`,
-    `concrete`, `plaster`, `wood`, `sand`, `grass`, `metal`, `hull`, `glow`, `gloss`, `fabric`. They multiply
-    the vertex colour (`COLOR_0`) and use planar uv in metres × about 0.25 (1 uv = 4 m). `glow` lights
-    up at night by its vertex colour.
+    `concrete`, `plaster`, `wood`, `sand`, `grass`, `metal`, `hull`, `glow`, `gloss`, `fabric`. The colour is
+    the vertex colour (`COLOR_0`; white without it) times the material's texture, read at the mesh's
+    `TEXCOORD_0`: give it planar uv, metres × the material's scale (0.25 for most: 1 uv = 4 m; each material's
+    in [`city.md`](city.md) 3, with pictures by day and night). `glow` gives light by its vertex colour, more
+    in the evening. The glTF material's own colour and textures are not used.
   - any other: glTF PBR (base colour, metallic, roughness, emissive, textures), drawn in the city's light.
-    `extras.envMapIntensity` (0–4, default 1): how much of the sky's light it takes and reflects.
+    `extras.envMapIntensity` (0–4): how much of the sky's light the material reflects. Without it 0.35, as the
+    city's surfaces; the city's glass is 1.5.
 - Node names are yours; `node_visible()` shows and hides a node of the near look by name. When the code
   stops (the player went past `release`, or it trapped), every node it hid shows again.
 - Shadows: the near look casts and takes shadows; the shell does neither.
@@ -96,9 +107,18 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
 - A cell is a walkable surface over a polygon (3–256 points, either winding). Its height:
   `{ "const": y }`, `{ "plane": [a, b, c] }` (`y = a + b·x + c·z`), or
   `{ "grid": { "x0", "z0", "step", "nx", "nz", "h": [nx·nz numbers, row by row along x] } }`.
-  `surf`: `deck` (default), `grass`, `sand`, `wood`, `water`. Cells go from their height down to the hull.
-  A step is two cells. Cells may overlap: at a point, a player stands on the highest one they can reach.
-- A collider is a prism: a polygon from `y0` to `y1`.
+  `surf`: `deck` (default), `grass`, `sand`, `wood`, `water` (only the footsteps' sound).
+- A cell is a **floor**: a walking player stands on the highest cell at their point whose top is at most
+  0.62 m over their feet; the higher ones are not there for them. So cells may overlap, one storey over
+  another. A cell is never a wall for a walker: walls are colliders. (For a swimmer, a board, a jetpack, a cell
+  is solid from its height down to the hull.)
+- A step is a cell of its own (at most 0.62 m over the one before). A cell has no holes: a floor round a
+  stairwell is several cells. Cells that meet must meet exactly: a gap is a hole a player falls through.
+- A collider is a prism: a polygon from `y0` to `y1`. It is a wall where it overlaps the player's band, feet
+  + 0.3 to feet + 1.9 (a door: a gap between colliders, 1.9 m high or more). A collider whose top is at most
+  0.62 m over the feet, within 0.5 m of the player, is ground to stand on (a bench; also the top of a wall
+  beside a stair). Colliders also stop the follow camera's arm (but small ones).
+- Two storeys with a stair, a door and a balcony, step by step: [`ground.md`](ground.md).
 - `arrive`: where a player coming to the island stands, and the heading (rad) they face: 0 faces +z, π/2
   faces +x (the forward direction is (sin h, 0, cos h), island frame).
 - At most 256 cells and 512 colliders.
@@ -110,7 +130,9 @@ glTF 2.0 binary (`.glb`), buffers and images inside the file.
 ```
 
 Tree kinds: `palmCoconut`, `palmRoyal`, `rainTree`, `frangipani`, `almond`, `shrub`, `bougainvillea`,
-`grass`, `hedge`, `forestTree`, `treeFern`, `fern`, `birch`. At most 400.
+`grass`, `hedge`, `forestTree`, `treeFern`, `fern`, `birch` (pictures and sizes: [`city.md`](city.md) 4). At
+most 400; `scale` 0.2–3. `y` is the foot. Trees do not collide: a trunk the player must not walk through needs a
+collider in `ground.json`.
 
 ### 2.5 Limits per island
 
@@ -165,8 +187,23 @@ the player is within `activate` m (until `release` m). It can do nothing but cal
   on this version on this device. The island's meshes from the package stay; what the code made goes.
 - One tick at a time: the next one starts after this one returned and the host has drawn its output.
   The output of a tick shows one frame later.
-- `sleep(interval, wake)`: tick only every `interval` s from now on, till something happens: an event,
-  or the player moving within `wake` m of the keep-out surface (3.8), or into or out of that band.
+- `sleep(interval, wake)`: tick only every `interval` s (0.05–5) from now on, till something happens: an
+  event (3.3), or, with a keep-out (3.8), the player moving within `wake` m (0–20) of its surface, or into or
+  out of that band. Then a tick every frame again. Only these wake it:
+  - not the inbox's `flags` changing (the player coming within `activate`, focus, the sun), and without a
+    keep-out not the player coming near;
+  - not the code: there is no call to wake up. A tick while asleep may call `sleep()` again (a new interval),
+    and that is all.
+
+  So sleep only when what can start the next motion is an event (an `ACT`, the focus) or the keep-out band,
+  or when a motion `interval` s late is good enough (a slow clock). Do not sleep "while the player is away"
+  and wait to see them come back: nothing wakes you when they do. The code runs while the player is within
+  `activate` m, and on till they are past `release` m: between the two, `flags` bit 1 is 0.
+
+  ```ts
+  // a door that opens on F: nothing moves till the ACT event, which wakes it
+  if (opening) { /* move it this tick */ if (done) { opening = false; fc.sleep(1, 0); } }
+  ```
 
 ### 3.3 The inbox
 
@@ -217,7 +254,7 @@ Calls that make something return its id (≥ 1) or an error (< 0, 3.6).
 | `texture(path, len) -> id` | an image file of the package |
 | `target(json, len) -> id` | a render target: `{ "width", "height" }` or `{ "screen": scale }`; `"format"`: `"r16f"`, `"rgba8"`, `"rgba16f"`; `"depth"`: bool |
 | `material(json, len) -> id` | 3.5 |
-| `uniform(mat, name, len, values, n)` | set a uniform: `n` f32 (1, 2, 3, 4, 9 or 16) |
+| `uniform(mat, name, len, values, n)` | set a uniform of a **shader** material (one in its `uniforms`): `n` f32 (1, 2, 3, 4, 9 or 16). A `city` or `standard` material does not change after it is made: for another colour, make another material and show the other mesh (`mesh_visible`), or a node of the near look (`node_visible`) |
 | `uniform_tex(mat, name, len, kind, id)` | a sampler: `kind` 0 a texture, 1 a target |
 | `mesh(geo, mat, json, len) -> id` | `{ "layer": "scene" \| "noReflect" \| "refract" \| "pass", "order", "castShadow", "receiveShadow" }`. `pass`: only drawn by passes. `refract`: drawn after the water, can read the picture behind (needs `refract`) |
 | `mesh_matrix(mesh, ptr)` | its matrix in the island frame |
@@ -226,9 +263,9 @@ Calls that make something return its id (≥ 1) or an error (< 0, 3.6).
 | `pass(json, len) -> id` | draw meshes into a target: `{ "target", "meshes": [ids], "camera": "main" \| "own", "stage": "frame" \| "refract", "clear": [r, g, b, a] }`. `frame`: before the frame, when `pass_run`; `refract`: every frame, before the `refract` meshes, with the main camera |
 | `pass_camera(pass, proj, view)` | an `own` camera: projection, and view (island frame → camera) |
 | `pass_run(pass)` | run a `frame` pass once, before the next frame |
-| `act(json, len) -> id` | an act point: `{ "x", "y", "z", "r", "dy", "hint": { "zh", "en" } }`. The player walking within `r` m (and `dy` m of `y`) sees the hint; the act key gives an `ACT` event |
+| `act(json, len) -> id` | an act point: `{ "x", "y", "z", "r", "dy", "hint": { "zh", "en" } }`. While the player walks (not in the air, wading, swimming) with their feet less than `r` m (0–10) from `(x, z)` across and less than `dy` m (default 1.5) from `y` up or down, they see the hint, and the act key (F) gives an `ACT` event. So `y` is the floor where the player stands, not the thing's height. The nearest act point wins |
 | `act_enable(act, on)` | |
-| `focus(json, len)` | take the camera and the pointer (needs `focus`): `{ "keys": ["KeyB", ...] }` (KeyboardEvent.code; Esc is always the host's). The player stands still |
+| `focus(json, len)` | take the camera and the pointer (needs `focus`): `{ "keys": ["KeyB", ...] }`: up to 16 `KeyboardEvent.code`s (`KeyB`, `Digit1`, `Space`, `ArrowUp`, …) that come as `KEY` events while in focus; the others do nothing. Not `Escape`: Esc always ends the focus (the host's; you get `FOCUS_END`). The player stands still |
 | `focus_camera(eye, target)` | 3 f32 each: where the camera is and looks |
 | `focus_cursor(kind)` | 0 default, 1 grab, 2 grabbing, 3 pointer |
 | `focus_end()` | give the camera back |
@@ -257,7 +294,7 @@ A material is one of:
 
 ```json
 { "city": "paving" }
-{ "standard": { "color": [1, 1, 1], "vertexColors": true, "roughness": 0.5, "metalness": 0, "envMapIntensity": 1, "emissive": [0, 0, 0], "side": "front" } }
+{ "standard": { "color": [1, 1, 1], "vertexColors": true, "roughness": 0.5, "metalness": 0, "envMapIntensity": 0.35, "emissive": [0, 0, 0], "side": "front" } }
 { "shader": {
     "vertex": "jelly.vert", "fragment": "jelly.frag",
     "defines": { "NTUB": 23 },
@@ -267,7 +304,7 @@ A material is one of:
     "blend": "normal", "polygonOffset": [0, 0] } }
 ```
 
-`side`: `front`, `back`, `double`. `blend`: `normal`, `none`, `add`, `multiply` (the colour times what is behind).
+`envMapIntensity` (0–4): as in 2.2 (0.35 without it). `side`: `front`, `back`, `double`. `blend`: `normal`, `none`, `add`, `multiply` (the colour times what is behind).
 
 **Shaders** (need `shader`). GLSL ES 3.00, written as for three.js's `ShaderMaterial` (`void main()`,
 `gl_FragColor`; three's `position`, `normal`, `uv`, `color`, `modelMatrix`, `viewMatrix`,
@@ -305,7 +342,8 @@ e.g. a light map's camera).
 | -3 | a capability not in `runtime.caps` |
 | -4 | no such id, or no such file in the package |
 
-Each error is also logged with what was wrong (`flotopia-ugc preview` shows them).
+Each error is also logged with what was wrong: `flotopia-ugc check` prints them, the UGC browser shows them in its
+panel and its console, `report()[0].errors` has them (AGENTS.md).
 
 ### 3.7 The panel
 
@@ -321,7 +359,12 @@ Each error is also logged with what was wrong (`flotopia-ugc preview` shows them
 ```
 
 The host draws it in the game's style, in the player's language. A control gives a `PANEL` event
-(swatch: its index; slider: its value; button: 1). `leave` ends focus.
+(swatch: its index; slider: its value; button: 1). `leave` ends focus. `id`s are your own integers.
+
+A button's or `leave`'s `key` (one capital letter or digit: `"B"`, `"F"`) is **only the key cap drawn on it**.
+To make the key work, put its code in `focus.keys` (`"KeyB"`) and act on its `KEY` event (for `leave`: call
+`focus_end`). Esc needs nothing: it always leaves. Not valid (the item is dropped, or the panel refused):
+`"key": "Esc"`, `"key": "KeyB"`. A panel the host refuses is logged as an error (-1) and not shown.
 
 ### 3.8 Keep-out
 

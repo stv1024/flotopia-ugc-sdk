@@ -2,3 +2,6 @@
 *.png binary
 *.glb binary
 *.wasm binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
