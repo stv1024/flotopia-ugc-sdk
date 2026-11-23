@@ -95,3 +95,30 @@ test('bad input is refused with the mesh named', () => {
   assert.throws(() => writeGlb([{ name: 'c', ...quad(), indices: new Uint16Array([0, 1, 9]) }]), /index 9/);
   assert.throws(() => writeGlb([{ name: 'd', ...quad(), uvs1: new Float32Array(3) }]), /uvs1/);
 });
+
+test('normals zero or not a number: mended as written (the triangles\' normal, else up), warned of, the input kept', () => {
+  const m = quad();
+  m.normals[3 * 1 + 2] = 0; // vertex 1: (0, 0, 0)
+  m.normals[3 * 3] = NaN; // vertex 3
+  const given = Float32Array.from(m.normals);
+  const said = [], warn = console.warn;
+  console.warn = (s) => said.push(s);
+  let b, ok;
+  try { b = writeGlb([{ name: 'wedge', ...m }], { log: 'near.glb' }); ok = writeGlb([{ name: 'fine', ...quad() }]); } finally { console.warn = warn; }
+  assert.equal(said.length, 1);
+  assert.match(said[0], /^near\.glb: wedge: 2 of 4 normals are zero or not a number \(vertices 1, 3\)/);
+  assert.deepEqual(m.normals, given);
+  const j = glbJson(b), a = j.accessors[j.meshes[0].primitives[0].attributes.NORMAL], v = j.bufferViews[a.bufferView];
+  const dv = new DataView(b.buffer, b.byteOffset), at = 20 + dv.getUint32(12, true) + 8 + v.byteOffset;
+  const N = Array.from({ length: 12 }, (_, i) => dv.getFloat32(at + 4 * i, true));
+  assert.deepEqual(N, [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]); // the quad faces +z
+  assert.ok(ok);
+  // a vertex only on a triangle of no area: straight up
+  const flat = { name: 'sliver', positions: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0]), normals: new Float32Array(9) };
+  console.warn = () => {};
+  let c;
+  try { c = writeGlb([flat]); } finally { console.warn = warn; }
+  const k = glbJson(c), w = k.bufferViews[k.accessors[k.meshes[0].primitives[0].attributes.NORMAL].bufferView];
+  const dc = new DataView(c.buffer, c.byteOffset), bt = 20 + dc.getUint32(12, true) + 8 + w.byteOffset;
+  assert.deepEqual([0, 1, 2].map((i) => dc.getFloat32(bt + 4 * i, true)), [0, 1, 0]);
+});

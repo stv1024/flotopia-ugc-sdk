@@ -11,7 +11,7 @@ import { checkPackage } from '../lib/check-package.mjs';
 import { reach } from '../lib/reach.mjs';
 import { panelProblem } from '../lib/panel.mjs';
 import { Shapes } from '../lib/shapes.mjs';
-import { writeGlb } from '../lib/glb.mjs';
+import { writeGlb, glbJson } from '../lib/glb.mjs';
 import { png } from '../lib/png.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -125,3 +125,67 @@ test('check: the probe package: act point out of reach, node names, a file nobod
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('check: zero normals in a .glb (float and quantized), each mesh named', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fc-check-'));
+  try {
+    const deck = new Shapes().cylinder('fc:paving', [0, -3.5, 0], 9.9, 4, { sides: 16 }).meshes();
+    deck[0].name = 'deck';
+    const roof = new Shapes().box('fc:wood', [-1, 0.5, -1], [1, 2, 1]).meshes();
+    roof[0].name = 'roof';
+    const near = writeGlb([...deck, ...roof]);
+    // zero three normals of the roof (writeGlb mends them: a package from elsewhere)
+    const j = glbJson(near), dv = new DataView(near.buffer, near.byteOffset);
+    const v = j.bufferViews[j.accessors[j.meshes[1].primitives[0].attributes.NORMAL].bufferView];
+    const at = 20 + dv.getUint32(12, true) + 8 + v.byteOffset;
+    for (const i of [2, 5, 7]) for (let k = 0; k < 3; k++) dv.setFloat32(at + 12 * i + 4 * k, 0, true);
+    // the shell: its normals quantized (KHR_mesh_quantization: normalized bytes), one of them zero
+    const shell = quantized();
+    const put = { 'near.glb': near, 'shell.glb': shell, 'ground.json': new TextEncoder().encode(JSON.stringify({ cells: [{ poly: rect(-9, -9, 9, 9), h: { const: 0.5 } }], colliders: [], arrive: [0, 0.5, 5, 0] })) };
+    const files = {};
+    for (const [f, b] of Object.entries(put)) {
+      writeFileSync(join(dir, f), b);
+      files[f] = { sha256: createHash('sha256').update(b).digest('hex'), bytes: b.length };
+    }
+    writeFileSync(join(dir, 'ugc.json'), JSON.stringify({ schema: 'flotopia-ugc/1', title: { zh: '法线', en: 'Normals' }, footprint: { shape: 'rect', w: 20, d: 20 }, shell: 'shell.glb', lods: [{ file: 'near.glb' }], ground: 'ground.json', files }));
+    const c = await checkPackage(dir);
+    assert.deepEqual(c.errors, []);
+    const w = warns(c, /normals are zero/);
+    const all = w.join('\n');
+    assert.equal(w.length, 2, c.warnings.join('\n'));
+    assert.match(all, /near\.glb: mesh "roof": 3 of \d+ normals are zero or not a number \(vertices 2, 5, 7\)/);
+    assert.match(all, /shell\.glb: mesh "shell": 1 of 3 normals .*\(vertex 1\)/);
+    assert.doesNotMatch(all, /deck/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// a .glb of one triangle, its normals normalized bytes (KHR_mesh_quantization), vertex 1's zero
+function quantized() {
+  const bin = new Uint8Array(36 + 12 + 12), dv = new DataView(bin.buffer);
+  [-5, 0, -5, 5, 0, -5, 0, 0, 5].forEach((x, i) => dv.setFloat32(4 * i, x, true));
+  [0, 127, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0].forEach((x, i) => dv.setInt8(36 + i, x));
+  bin.fill(200, 48); // the colours
+  const json = {
+    asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ name: 'shell', mesh: 0 }],
+    extensionsUsed: ['KHR_mesh_quantization'], extensionsRequired: ['KHR_mesh_quantization'],
+    meshes: [{ name: 'shell', primitives: [{ attributes: { POSITION: 0, NORMAL: 1, COLOR_0: 2 }, material: 0 }] }],
+    materials: [{ name: 'fc:plaster' }],
+    accessors: [
+      { bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [-5, 0, -5], max: [5, 0, 5] },
+      { bufferView: 1, componentType: 5120, normalized: true, count: 3, type: 'VEC3' },
+      { bufferView: 2, componentType: 5121, normalized: true, count: 3, type: 'VEC4' },
+    ],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36, target: 34962 }, { buffer: 0, byteOffset: 36, byteLength: 12, byteStride: 4, target: 34962 }, { buffer: 0, byteOffset: 48, byteLength: 12, target: 34962 }],
+    buffers: [{ byteLength: bin.length }],
+  };
+  const t = new TextEncoder().encode(JSON.stringify(json)), jl = Math.ceil(t.length / 4) * 4;
+  const out = new Uint8Array(20 + jl + 8 + bin.length), o = new DataView(out.buffer);
+  o.setUint32(0, 0x46546c67, true); o.setUint32(4, 2, true); o.setUint32(8, out.length, true);
+  o.setUint32(12, jl, true); o.setUint32(16, 0x4e4f534a, true);
+  out.set(t, 20); out.fill(0x20, 20 + t.length, 20 + jl);
+  o.setUint32(20 + jl, bin.length, true); o.setUint32(24 + jl, 0x004e4942, true);
+  out.set(bin, 28 + jl);
+  return out;
+}
