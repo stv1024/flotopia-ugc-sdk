@@ -129,12 +129,19 @@ export class Name {
 
 export function log(s: string): void { const b = utf8(s); _log(changetype<usize>(b), b.byteLength); }
 
-// bytes for geometry (a typed array: its bytes as they are)
-export function buffer<T extends ArrayBufferView>(data: T, dynamic: bool = false): i32 {
-  return _buffer(data.dataStart, data.byteLength, dynamic ? 1 : 0);
+// bytes for geometry: a typed array (Float32Array, Uint16Array, ...) or a StaticArray of numbers (StaticArray<f32>,
+// e.g. vertices your build script wrote into a .ts file), their bytes as they are
+export function buffer<T>(data: T, dynamic: bool = false): i32 {
+  // @ts-ignore: compile-time
+  if (isDefined(data.dataStart)) return _buffer(data.dataStart, data.byteLength, dynamic ? 1 : 0);
+  // @ts-ignore: a StaticArray
+  return _buffer(changetype<usize>(data), data.length * sizeof<valueof<T>>(), dynamic ? 1 : 0);
 }
-export function bufferWrite<T extends ArrayBufferView>(id: i32, data: T, offset: i32 = 0): void {
-  _buffer_write(id, offset, data.dataStart, data.byteLength);
+export function bufferWrite<T>(id: i32, data: T, offset: i32 = 0): void {
+  // @ts-ignore: compile-time
+  if (isDefined(data.dataStart)) { _buffer_write(id, offset, data.dataStart, data.byteLength); return; }
+  // @ts-ignore: a StaticArray
+  _buffer_write(id, offset, changetype<usize>(data), data.length * sizeof<valueof<T>>());
 }
 export function bufferWriteRaw(id: i32, offset: i32, ptr: usize, len: i32): void { _buffer_write(id, offset, ptr, len); }
 
@@ -206,3 +213,119 @@ export function sleep(interval: f32, wake: f32): void { _sleep(interval, wake); 
 
 // a number for JSON (no NaN, no Infinity)
 export function num(x: f64): string { return isFinite(x) ? x.toString() : "0"; }
+
+// a string for JSON, in quotes
+export function str(s: string): string {
+  let o = "\"";
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c == 34) o += "\\\"";
+    else if (c == 92) o += "\\\\";
+    else if (c < 32) o += c == 10 ? "\\n" : " ";
+    else o += String.fromCharCode(c);
+  }
+  return o + "\"";
+}
+
+// ------------------------------------------------------------------ matrices
+// 4 × 4, column-major, in a StaticArray<f32>(16) (meshMatrix, passCamera). They write into `m` (nothing allocated:
+// fine every tick) and give it back.
+//   const M = new StaticArray<f32>(16);
+//   fc.meshMatrix(door, fc.Mat4.compose(M, 2, 0.5, 4, angle, 1));   // turned `angle` about +y, at (2, 0.5, 4)
+export namespace Mat4 {
+  export function identity(m: StaticArray<f32>): StaticArray<f32> {
+    for (let i = 0; i < 16; i++) unchecked(m[i] = i % 5 == 0 ? 1 : 0);
+    return m;
+  }
+  export function translate(m: StaticArray<f32>, x: f32, y: f32, z: f32): StaticArray<f32> {
+    identity(m);
+    unchecked(m[12] = x); unchecked(m[13] = y); unchecked(m[14] = z);
+    return m;
+  }
+  // about +y, a radians: +x turns toward −z (as three.js rotation.y; a heading h faces (sin h, 0, cos h))
+  export function rotateY(m: StaticArray<f32>, a: f32): StaticArray<f32> {
+    identity(m);
+    const c = Mathf.cos(a), s = Mathf.sin(a);
+    unchecked(m[0] = c); unchecked(m[2] = -s); unchecked(m[8] = s); unchecked(m[10] = c);
+    return m;
+  }
+  export function scale(m: StaticArray<f32>, x: f32, y: f32, z: f32): StaticArray<f32> {
+    identity(m);
+    unchecked(m[0] = x); unchecked(m[5] = y); unchecked(m[10] = z);
+    return m;
+  }
+  // scale s, then turn yaw about +y, then move to (x, y, z): the matrix most meshes need
+  export function compose(m: StaticArray<f32>, x: f32, y: f32, z: f32, yaw: f32, s: f32 = 1): StaticArray<f32> {
+    const c = Mathf.cos(yaw) * s, n = Mathf.sin(yaw) * s;
+    unchecked(m[0] = c); unchecked(m[1] = 0); unchecked(m[2] = -n); unchecked(m[3] = 0);
+    unchecked(m[4] = 0); unchecked(m[5] = s); unchecked(m[6] = 0); unchecked(m[7] = 0);
+    unchecked(m[8] = n); unchecked(m[9] = 0); unchecked(m[10] = c); unchecked(m[11] = 0);
+    unchecked(m[12] = x); unchecked(m[13] = y); unchecked(m[14] = z); unchecked(m[15] = 1);
+    return m;
+  }
+  // out = a × b (b first, then a). out may be a or b
+  export function multiply(out: StaticArray<f32>, a: StaticArray<f32>, b: StaticArray<f32>): StaticArray<f32> {
+    for (let c = 0; c < 4; c++) {
+      const b0 = unchecked(b[c * 4]), b1 = unchecked(b[c * 4 + 1]), b2 = unchecked(b[c * 4 + 2]), b3 = unchecked(b[c * 4 + 3]);
+      for (let r = 0; r < 4; r++) unchecked(tmp[c * 4 + r] = unchecked(a[r]) * b0 + unchecked(a[4 + r]) * b1 + unchecked(a[8 + r]) * b2 + unchecked(a[12 + r]) * b3);
+    }
+    for (let i = 0; i < 16; i++) unchecked(out[i] = tmp[i]);
+    return out;
+  }
+  const tmp = new StaticArray<f32>(16);
+}
+
+// ------------------------------------------------------------------ the panel (docs/abi.md 3.7)
+// Its JSON written for you, the texts escaped:
+//   const p = new fc.Panel("茶席", "TEA");
+//   p.swatches(1, 0).option(["#f3c1c6"], "樱饼", "Sakura").option(["#9fc28a"], "团子", "Dango");
+//   p.label("甜 — 淡", "Sweet — Plain").slider(2, 0, 100, 50);
+//   p.button(3, "上茶", "Serve", "B").button(4, "收拾", "Clear");   // one row (up to 4)
+//   p.leave("离开", "Leave");
+//   fc.focus(`{"keys":["KeyB"]}`); p.show();
+// A key ("B") is only the key cap drawn on the button: put its code ("KeyB") in focus.keys and act on its KEY event.
+export class Panel {
+  private items: string[] = [];
+  private row: string[] | null = null;
+  private opts: string[] | null = null;
+  private swatch: string = "";
+  constructor(private zh: string, private en: string) {}
+  private text(zh: string, en: string): string { return `{"zh":${str(zh)},"en":${str(en)}}`; }
+  private close(): void {
+    if (this.row) { this.items.push(`{"buttons":[${this.row!.join(",")}]}`); this.row = null; }
+    if (this.opts) { this.items.push(`{"swatches":{${this.swatch},"options":[${this.opts!.join(",")}]}}`); this.opts = null; }
+  }
+  label(zh: string, en: string): Panel { this.close(); this.items.push(`{"label":${this.text(zh, en)}}`); return this; }
+  slider(id: i32, min: f64, max: f64, value: f64, step: f64 = 1): Panel {
+    this.close();
+    this.items.push(`{"slider":{"id":${id},"min":${num(min)},"max":${num(max)},"value":${num(value)},"step":${num(step)}}}`);
+    return this;
+  }
+  // a row of swatches: then option() for each (up to 8)
+  swatches(id: i32, value: i32 = 0): Panel { this.close(); this.swatch = `"id":${id},"value":${value}`; this.opts = []; return this; }
+  // colours "#rrggbb" (1–4), stops (0–100, one fewer than the colours) or none
+  option(colors: string[], zh: string, en: string, stops: f64[] | null = null): Panel {
+    if (!this.opts) this.swatches(0);
+    const cs: string[] = [];
+    for (let i = 0; i < colors.length; i++) cs.push(str(colors[i]));
+    let s = `{"colors":[${cs.join(",")}],"title":${this.text(zh, en)}`;
+    if (stops) { const ss: string[] = []; const st = stops; for (let i = 0; i < st.length; i++) ss.push(num(st[i])); s += `,"stops":[${ss.join(",")}]`; }
+    this.opts!.push(s + "}");
+    return this;
+  }
+  // a button, in the row of buttons going on (a new row after 4, or after another kind of item)
+  button(id: i32, zh: string, en: string, key: string = ""): Panel {
+    if (this.opts) this.close();
+    if (this.row && this.row!.length >= 4) this.close();
+    if (!this.row) this.row = [];
+    this.row!.push(`{"id":${id},"text":${this.text(zh, en)}${key.length ? `,"key":${str(key)}` : ""}}`);
+    return this;
+  }
+  leave(zh: string, en: string, key: string = ""): Panel {
+    this.close();
+    this.items.push(`{"leave":{"text":${this.text(zh, en)}${key.length ? `,"key":${str(key)}` : ""}}}`);
+    return this;
+  }
+  json(): string { this.close(); return `{"title":${this.text(this.zh, this.en)},"items":[${this.items.join(",")}]}`; }
+  show(): void { panel(this.json()); }
+}

@@ -20,28 +20,31 @@ Most of the look is made at build time. Run time is for what moves and answers t
 The shortest path, from nothing to a package you have walked through:
 
 ```sh
-npm i -D flotopia-ugc assemblyscript playwright-core   # (or this repo, by path: file:../flotopia-ugc-sdk)
-npx playwright-core install chromium --only-shell       # once: the browser of shot
-# 1. build your files into dist/ (ugc.json and everything it names): your build script
+npm i -D github:stv1024/flotopia-ugc-sdk assemblyscript playwright-core   # (or this repo by path: file:../flotopia-ugc-sdk)
+npx playwright-core install chromium --only-shell       # once: the browser of shot and play
+# 1. build your files into dist/ (ugc.json and everything it names): your build script (lib/shapes.mjs, lib/glb.mjs)
 node build.mjs
 # 2. write the files' hashes into ugc.json (after every build: the game refuses a file whose hash is not there)
 npx flotopia-ugc pack dist
-# 3. every check the game makes, and a trial run of your code with a fake host
+# 3. every check the game makes, a trial run of your code with a fake host, and warnings: act points out of reach,
+#    floors nobody can walk to (a door walled up), meshes past the footprint, files nothing uses, node names, panels
 npx flotopia-ugc check dist
-# 4. serve it (CORS on) and leave it running
+# 4. play it as a player, in the UGC browser: from arrive, walking, pressing F, into focus and out (play.json, below)
+npx flotopia-ugc play dist play.json
+# 5. look at it yourself: serve it (CORS on), leave it running, open the UGC browser (below)
 npx flotopia-ugc serve dist --port 8787
-# 5. look at it alone, play it: the UGC browser (below)
-#    https://stv1024.asia/flotopia/editor/ugc/?ugc=http://localhost:8787/ugc.json
-#    &play: walk it (WASD, F at act points, Esc out of focus); &debug=ground: see the cells, colliders, act points
+#    https://stv1024.asia/flotopia/editor/ugc/?ugc=http://localhost:8787/ugc.json&play&debug=ground
 # 6. pictures without a screen
-npx flotopia-ugc shot "https://stv1024.asia/flotopia/editor/ugc/?ugc=http://localhost:8787/ugc.json&ui=0&cam=0,8,30,0,2,0" .tmp/front.jpg
+npx flotopia-ugc shot "https://stv1024.asia/flotopia/editor/ugc/?ugc=http://localhost:8787/ugc.json&cam=0,8,30,0,2,0" .tmp/front.jpg --hide-ui
 # 7. put dist/ on your https host (CORS: Access-Control-Allow-Origin: *), check it there, give the platform its URL
 npx flotopia-ugc check https://<your host>/ugc.json
 ```
 
-Start from a template: `templates/minimal` (a disc and a pillar), `templates/house` (two storeys, a stair,
-doors: [`docs/ground.md`](docs/ground.md)), `templates/showcase` (every capability), `templates/reference` (the
-city's materials and trees: [`docs/city.md`](docs/city.md)).
+Start from a template (copy its directory; in its package.json set `flotopia-ugc` to
+`github:stv1024/flotopia-ugc-sdk` in place of `file:../..`; `npm i`; `npm run build`, `check`, `play`):
+`templates/minimal` (a deck, a turning box, an act point), `templates/house` (two storeys, a stair, doors:
+[`docs/ground.md`](docs/ground.md)), `templates/showcase` (every capability), `templates/reference` (the city's
+materials and trees: [`docs/city.md`](docs/city.md)).
 
 ## See it and play it: the UGC browser
 
@@ -129,7 +132,71 @@ if (!U.report()[0].runtime.focus) throw new Error('no focus');
 await U.press('Escape');                                    // and out
 ```
 
-Run it in the browser's console, or with `shot --eval` (below; the page waits for a promise it returns).
+Run it in the browser's console, or with `shot --eval` / `shot --script`; or write it as steps for `play`.
+
+### play: a test that fails when it cannot be played
+
+`flotopia-ugc play <dir | URL of ugc.json> [steps.json]` serves a directory itself (a free port), opens it in the
+published UGC browser (`--browser <url>` another), starts at `arrive`, runs the steps, and exits 1 with the step
+and the reason when one fails (a picture `fail.jpg` in `--out`, default `.tmp/play`); also on a page error, a
+trap of the code, the near look not loading. Without steps it checks that a player stands on a floor at `arrive`.
+
+```json
+{ "steps": [
+  { "walk": [0, 3], "y": 0.5 },
+  { "walk": [-4.3, -1.5], "y": 3.5 },
+  { "act": 0 },
+  { "focus": true },
+  { "press": "KeyB" },
+  { "shot": "focus.jpg" },
+  { "press": "Escape" },
+  { "focus": false }
+] }
+```
+
+| step | |
+|---|---|
+| `{ "walk": [x, z], "y"?, "run"?, "r"?, "timeout"? }` | walk there (the host's `walkTo`: a straight line, so go round things in legs); `y`: the feet's height when there (±0.1) |
+| `{ "act": n }` | walk into act point n's reach (0: the first your code made), press F: it must act |
+| `{ "press": "KeyF", "acted"?: true \| false, "hold"?: s }` | a key, as a player's (`KeyboardEvent.code`) |
+| `{ "focus": true \| false }` | your code's focus must be on / off (within 3 s) |
+| `{ "key": "Space", "ms": 300 }` | a key held (the keyboard: a jump) |
+| `{ "wait": ms }`, `{ "shot": "name.jpg" }` | wait; a picture into `--out` |
+| `{ "view": { "yaw", "pitch", "fp" } }`, `{ "look": [x, y, z] }` | the follow camera |
+| `{ "expect": { "y", "mode", "near": [x, z, r] } }` | the player now |
+| `{ "eval": "js" }` | JS in the page; it must not throw |
+
+When a walk fails, play says what stopped the player: `collider 3 (y 0.5 .. 3.5) in the way` (its index in
+ground.json's colliders), a cell too high (a step over 0.62 m), no ground ahead. `templates/house/play.json` and `templates/showcase/play.json` are whole examples.
+
+### shot: pictures, and scripts
+
+`flotopia-ugc shot <page URL> <out.jpg>` waits for the page's first frame, then for the package's near look and
+its code (not a fixed time; `--wait ms` more, default 1000), then takes the picture. `--hide-ui`: the page
+without its own UI (`&ui=0`; your focus panel stays). `--size 1600x900`. It exits 1 on a page error, a trap,
+the near look not shown, or a script failing, and prints the package's report (the code's state, the last
+trap's reason and wasm stack, the errors the host logged).
+
+`--eval "<js>"`: JS in the page (a promise it gives is waited for: `"(async () => { ... })()"`). `--script
+file.mjs`: your module, run in Node with a helper `t` that drives the page, step by step, each printing the
+player's state:
+
+```js
+// shots.mjs: npx flotopia-ugc shot "<UGC browser>?ugc=http://localhost:8787/ugc.json" .tmp/last.jpg --script shots.mjs --hide-ui
+export default async function (t) {
+  await t.play();                       // at arrive (t.play({ x, z, h }) elsewhere)
+  await t.walkTo(0, 3, { y: 0.5 });     // throws, with the blocker, if not there
+  await t.shot('door.jpg');             // next to the out file
+  await t.act(0);                       // walk into act point 0's reach, press F: it must act
+  await t.focus(true);
+  await t.key('KeyB', 200);             // a key held 200 ms; t.press('KeyB') as the host's press()
+  await t.shot('focus.jpg');
+  await t.press('Escape');
+  t.assert((await t.player()).pos[1] < 1, 'still downstairs');
+  // also: t.wait(ms), t.acts(), t.report(), t.view({ yaw, pitch, fp }), t.lookAt(x, y, z), t.setCam([...]),
+  // t.cam(), t.eval(js), t.U((U, a) => U.something(a), a) (any of window.__floating.ugc), t.page (Playwright)
+}
+```
 
 ## In the city
 
@@ -143,8 +210,14 @@ Last, see it among the city: `https://stv1024.asia/flotopia/?ugc=http://localhos
 
 ## Build time: the files
 
-- `lib/glb.mjs` writes glTF binaries from typed arrays (no DOM needed): `writeGlb([{ name, material,
-  positions, normals, colors, uvs, indices, matrix }])`. Use the city's materials (`'fc:paving'`, `'fc:plaster'`,
+- `lib/shapes.mjs` makes boxes, cylinders and cones, balls, prisms (a polygon pushed up) and gable roofs, merged
+  by material (one draw call each), with planar uv at each material's scale, facing out; `mat4` moves and turns
+  them. `lib/glb.mjs` writes them (or your own typed arrays) as glTF binaries, no DOM needed:
+  `writeGlb(shapes.meshes(), { log: 'near.glb' })` (it prints the draw calls and triangles as the host counts
+  them). A PBR material takes `alphaMode` (BLEND by itself when its colour's alpha is under 1: glass), embedded
+  PNG/JPEG textures (`map`, `emissiveMap`, `lib/png.mjs` makes PNGs), a second uv set (`uvs1`, `texCoord: 1`), and
+  a mesh `instances` (EXT_mesh_gpu_instancing: many copies, one draw call): see the top of glb.mjs.
+  Use the city's materials (`'fc:paving'`, `'fc:plaster'`,
   …: docs/abi.md 2.2) where you can: the island then looks like part of the city, at night too. What each looks
   like, by day and night, its uv scale, and how bright an emissive should be: [`docs/city.md`](docs/city.md).
 - **Design to the city's sizes** (docs/city.md 2): the player is 1.75 m tall and 0.7 m wide, steps up 0.62 m,
@@ -195,6 +268,10 @@ Rules that matter:
   if it is small and goes back after a while.
 - **No allocation in the tick loop** if you can help it (AssemblyScript: preallocate; use `unchecked()` in hot loops;
   names you pass every tick, a uniform's or a node's: `new fc.Name("uTime")` once, then pass that).
+- **AssemblyScript helpers** (`assembly/fc.ts`): `fc.buffer()` takes a typed array or a `StaticArray<f32>`
+  (vertices your build script wrote into a `.ts` file); `fc.Mat4.compose(m, x, y, z, yaw, s)`, `translate`,
+  `rotateY`, `scale`, `multiply` write a matrix into a `StaticArray<f32>(16)` without allocating; `fc.Panel`
+  writes a panel's JSON (`new fc.Panel(zh, en).button(1, "上茶", "Serve", "B").leave("离开", "Leave").show()`).
 - **Ids** from the host are ≥ 1; < 0 is an error (docs/abi.md 3.6). Log it.
 - **Uploads**: `bufferWrite` at most 1 MB a tick. Write only what moved.
 - **Shaders** (`shader` capability): written like three.js `ShaderMaterial`; only constant-bound `for` loops;
@@ -209,9 +286,11 @@ Rules that matter:
 - `check` must pass before you say you are done. It runs your code in Node with a fake host for some ticks,
   twice, and compares (determinism); it checks every shader your code loads. It does not walk your ground and
   it does not see the picture.
-- **Play it** in the UGC browser, as a player: from `arrive`, with `walkTo` (never `teleport`) through every
-  door, up and down every stair, to every act point, `press('KeyF')` (never `act()`) there, into focus and out
-  with `press('Escape')`. `&debug=ground` shows what blocks. Every act point must be reachable on foot.
+- Read `check`'s warnings: each is something a player would find (an act point nobody can reach, a floor walled
+  in, a stray file in the package). They come from ground.json on a grid: a hint where to look, not proof.
+- **Play it**: `flotopia-ugc play dist play.json` must pass, with steps from `arrive` through every door, up and
+  down every stair, to every act point (`act`), into focus and out (`press: Escape`). Never `teleport` or `act()`
+  to test (they go through walls and past the reach). `&debug=ground` in the UGC browser shows what blocks.
 - Look at it: `shot` near, far, at night (`&tod=22`), in focus. Compare with what you meant and with
   docs/city.md (sizes, materials).
 - Watch the fuel numbers `check` prints: a tick near the limit will fail on a slow computer.

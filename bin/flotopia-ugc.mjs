@@ -1,26 +1,31 @@
 #!/usr/bin/env node
-// flotopia-ugc: tools for making a UGC island (docs/abi.md).
-//   pack <dir>                      write the files' SHA-256 and sizes into <dir>/ugc.json
-//   check <dir | url>               every check the game makes, and a trial run of the code
-//   serve <dir> [--port 8787]       serve the package with CORS, for the game to load (?ugc=...)
-//   shot <game-url> <out.jpg> [--wait ms] [--size WxH] [--eval js] [--then ms]   a screenshot of the game (headless)
+// flotopia-ugc: tools for making a UGC island (docs/abi.md, AGENTS.md).
+//   pack <dir>                       write the files' SHA-256 and sizes into <dir>/ugc.json
+//   check <dir | url>                every check the game makes, a trial run of the code, warnings (reach, files, names)
+//   serve <dir> [--port 8787]        serve the package with CORS, for the UGC browser and the game (?ugc=...)
+//   play <dir | url> [steps.json]    play it in the UGC browser as a player: walk, press keys, focus; fails if it cannot
+//        [--out .tmp/play] [--browser url] [--ui] [--headed] [--size WxH]
+//   shot <page-url> <out.jpg>        a picture of the UGC browser or the game, when the package is loaded
+//        [--script file.mjs] [--eval js] [--hide-ui] [--wait ms] [--size WxH] [--then ms]
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { join, relative, extname, resolve, sep } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 
+const FLAGS = new Set(['hide-ui', 'ui', 'headed']); // switches: never take the next word
 const [cmd, ...rest] = process.argv.slice(2);
 const opts = {}, pos = [];
 for (let i = 0; i < rest.length; i++) {
   const a = rest[i];
-  if (a.startsWith('--')) opts[a.slice(2)] = rest[i + 1] && !rest[i + 1].startsWith('--') ? rest[++i] : true;
-  else pos.push(a);
+  if (a.startsWith('--')) {
+    const k = a.slice(2);
+    opts[k] = FLAGS.has(k) || !rest[i + 1] || rest[i + 1].startsWith('--') ? true : rest[++i];
+  } else pos.push(a);
 }
 
 const NOT_PACKAGE = new Set(['ugc.json', '_headers', '_redirects']);
-const COMMANDS = { pack, check, serve, shot };
+const COMMANDS = { pack, check, serve, play, shot };
 if (!COMMANDS[cmd]) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 6).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(1, 10).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
   process.exit(cmd ? 1 : 0);
 }
 await COMMANDS[cmd]();
@@ -67,6 +72,10 @@ async function check() {
   const where = pos[0] ?? '.';
   const r = await checkPackage(where, { seed: +(opts.seed ?? 1), ticks: +(opts.ticks ?? 600) });
   for (const line of r.report) console.log(line);
+  if (r.warnings?.length) {
+    console.log(`\n${r.warnings.length} warning(s):`);
+    for (const w of r.warnings) console.log(`  ${w}`);
+  }
   if (r.errors.length) {
     console.log(`\n${r.errors.length} error(s):`);
     for (const e of r.errors) console.log(`  ${e.code}${e.path ? ` [${e.path}]` : ''}: ${e.message}`);
@@ -77,35 +86,31 @@ async function check() {
 
 // ------------------------------------------------------------------ serve
 
-const TYPES = {
-  '.json': 'application/json', '.glb': 'model/gltf-binary', '.wasm': 'application/wasm', '.png': 'image/png', '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.vert': 'text/plain; charset=utf-8', '.frag': 'text/plain; charset=utf-8',
-  '.glsl': 'text/plain; charset=utf-8', '.bin': 'application/octet-stream',
-};
-
 async function serve() {
+  const { servePackage } = await import('../lib/serve.mjs');
   const dir = resolve(pos[0] ?? '.'), port = +(opts.port ?? 8787);
-  const server = createServer((req, res) => {
-    // CORS for the game (any origin; an https page asking a local address: Private Network Access)
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Private-Network', 'true');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Cache-Control', 'no-store');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
-    const url = new URL(req.url, 'http://x');
-    const p = resolve(dir, '.' + decodeURIComponent(url.pathname));
-    if (!p.startsWith(dir) || !existsSync(p) || statSync(p).isDirectory()) { res.writeHead(404); res.end('not found'); return; }
-    res.setHeader('Content-Type', TYPES[extname(p)] ?? 'application/octet-stream');
-    res.writeHead(200);
-    res.end(readFileSync(p));
-  });
-  server.listen(port, () => {
-    const u = `http://localhost:${port}/ugc.json`;
-    console.log(`serving ${dir}`);
-    console.log(`  the package:      ${u}`);
-    console.log(`  in the game:      https://stv1024.asia/flotopia/?ugc=${encodeURIComponent(u)}`);
-    console.log('  (put it on a slot: &ugcslot=<id>; stand somewhere: &at=x,z)');
-  });
+  await servePackage(dir, port).catch((e) => fail(`port ${port}: ${e.message} (try another: --port)`));
+  const u = `http://localhost:${port}/ugc.json`;
+  console.log(`serving ${dir}`);
+  console.log(`  the package:      ${u}`);
+  console.log(`  alone, to play:   https://stv1024.asia/flotopia/editor/ugc/?ugc=${u}&play`);
+  console.log(`  in the city:      https://stv1024.asia/flotopia/?ugc=${u}`);
+  console.log('  (nothing comes? another program may have this port: --port)');
+}
+
+// ------------------------------------------------------------------ play
+
+async function play() {
+  const { play: run } = await import('../lib/play.mjs');
+  if (!pos[0]) fail('play <dir | url of ugc.json> [steps.json] [--out .tmp/play] [--browser url] [--ui] [--headed] [--size WxH]');
+  const [w, h] = String(opts.size ?? '1280x720').split('x').map(Number);
+  const r = await run(pos[0], pos[1] ?? null, { browser: opts.browser, out: opts.out ?? '.tmp/play', width: w, height: h, ui: !!opts.ui, headed: !!opts.headed });
+  if (!r.ok) {
+    console.log(`\nFAILED (${r.fails.length}):`);
+    for (const f of r.fails) console.log(`  ${f}`);
+    process.exit(1);
+  }
+  console.log('\nOK: played');
 }
 
 // ------------------------------------------------------------------ shot
@@ -113,11 +118,14 @@ async function serve() {
 async function shot() {
   const { screenshot } = await import('../lib/shot.mjs');
   const [url, out] = pos;
-  if (!url || !out) fail('shot <game-url> <out.jpg> [--wait ms] [--size WxH] [--eval js] [--then ms]');
+  if (!url || !out) fail('shot <page-url> <out.jpg> [--script file.mjs] [--eval js] [--hide-ui] [--wait ms] [--size WxH] [--then ms]');
   const [w, h] = String(opts.size ?? '1280x720').split('x').map(Number);
-  const r = await screenshot(url, out, { wait: +(opts.wait ?? 4000), width: w, height: h, evaluate: opts.eval ?? null, then: +(opts.then ?? 2000) });
+  const r = await screenshot(url, out, {
+    wait: +(opts.wait ?? 1000), width: w, height: h, evaluate: opts.eval ?? null, script: opts.script ?? null,
+    then: +(opts.then ?? 500), hideUi: !!opts['hide-ui'],
+  });
   for (const line of r.log) console.log(line);
-  console.log(`${out}${r.errors.length ? `, ${r.errors.length} page error(s)` : ''}`);
+  console.log(`${out}${r.errors.length ? `, ${r.errors.length} problem(s)` : ''}`);
   for (const e of r.errors) console.log(`  ${e}`);
   if (r.errors.length) process.exit(1);
 }

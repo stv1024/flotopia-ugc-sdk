@@ -2,10 +2,11 @@
 // Every part is in ONE list (PARTS) and makes both its mesh and its ground: a 'solid' a box mesh and a collider,
 // a 'floor' a box mesh and a cell on its top, a 'look' only a mesh, a 'collider' only a collider. So a door cut
 // in the mesh is cut in the colliders too: they cannot disagree.
-//   node build.mjs && npx flotopia-ugc pack dist && npx flotopia-ugc check dist
+//   npm run build && npm run check && npm run play   (play.json: the walk of docs/ground.md)
 // Island frame: +z is the island's front (the door faces it), +x to the right seen from the front, +y up.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { writeGlb } from 'flotopia-ugc/lib/glb.mjs';
+import { Shapes } from 'flotopia-ugc/lib/shapes.mjs';
 
 const DECK = 0.5; // the deck's top (the city's decks are at 0.5)
 const STOREY = 3.0; // floor to floor
@@ -88,42 +89,16 @@ solid(-4, -2, DECK, DECK + 0.45, 7, 7.5, 'fc:wood', [0.7, 0.5, 0.35]);
 look(2, 4, DECK, DECK + 0.8, 7, 8, 'fc:concrete', [0.8, 0.8, 0.78]);
 collider(2, 4, DECK, DECK + 1.9, 7, 8);
 
-// ------------------------------------------------------------------ meshes (one a material) and ground.json
-function box(p) {
-  const P = [], N = [], C = [], U = [], I = [];
-  const lo = [p.x0, p.y0, p.z0], hi = [p.x1, p.y1, p.z1];
-  for (let ax = 0; ax < 3; ax++) for (const sg of [1, -1]) {
-    const u = (ax + 1) % 3, v = (ax + 2) % 3, b = P.length / 3;
-    for (const [a, c] of [[0, 0], [1, 0], [1, 1], [0, 1]]) {
-      const q = [0, 0, 0], n = [0, 0, 0];
-      q[ax] = sg > 0 ? hi[ax] : lo[ax];
-      q[u] = a ? hi[u] : lo[u];
-      q[v] = c ? hi[v] : lo[v];
-      n[ax] = sg;
-      P.push(...q); N.push(...n); C.push(...p.col); U.push(q[u] * 0.25, q[v] * 0.25); // planar uv, 1 uv = 4 m
-    }
-    if (sg > 0) I.push(b, b + 1, b + 2, b, b + 2, b + 3); else I.push(b, b + 2, b + 1, b, b + 3, b + 2);
-  }
-  return { P, N, C, U, I };
-}
-function merge(parts) {
-  const g = { P: [], N: [], C: [], U: [], I: [] };
-  for (const p of parts) {
-    const b = box(p), o = g.P.length / 3;
-    g.P.push(...b.P); g.N.push(...b.N); g.C.push(...b.C); g.U.push(...b.U); g.I.push(...b.I.map((i) => i + o));
-  }
-  return { positions: new Float32Array(g.P), normals: new Float32Array(g.N), colors: new Float32Array(g.C), uvs: new Float32Array(g.U), indices: new Uint32Array(g.I) };
-}
-
+// ------------------------------------------------------------------ meshes (one a material: Shapes) and ground.json
 mkdirSync('dist', { recursive: true });
-const shown = PARTS.filter((p) => p.kind !== 'collider');
-const mats = [...new Set(shown.map((p) => p.mat))];
-writeFileSync('dist/near.glb', writeGlb(mats.map((mat) => ({ name: mat.replace('fc:', ''), material: mat, ...merge(shown.filter((p) => p.mat === mat)) }))));
+const near = new Shapes();
+for (const p of PARTS) if (p.kind !== 'collider') near.box(p.mat, [p.x0, p.y0, p.z0], [p.x1, p.y1, p.z1], { color: p.col });
+writeFileSync('dist/near.glb', writeGlb(near.meshes(), { log: 'near.glb' }));
 // the shell: the deck and the house as two boxes, one material, vertex colours
-writeFileSync('dist/shell.glb', writeGlb([{ name: 'shell', material: { color: [1, 1, 1] }, ...merge([
-  { x0: -W / 2, x1: W / 2, y0: -1, y1: DECK, z0: -D / 2, z1: D / 2, col: [0.85, 0.85, 0.83] },
-  { x0: -HX, x1: HX, y0: DECK, y1: TOP + 0.25, z0: -HZ, z1: HZ, col: [0.93, 0.9, 0.84] },
-]) }]));
+const shell = new Shapes(), S = { name: 'shell', color: [1, 1, 1] };
+shell.box(S, [-W / 2, -1, -D / 2], [W / 2, DECK, D / 2], { color: [0.85, 0.85, 0.83] });
+shell.box(S, [-HX, DECK, -HZ], [HX, TOP + 0.25, HZ], { color: [0.93, 0.9, 0.84] });
+writeFileSync('dist/shell.glb', writeGlb(shell.meshes(), { log: 'shell.glb' }));
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const rect = (p) => [[r3(p.x0), r3(p.z0)], [r3(p.x1), r3(p.z0)], [r3(p.x1), r3(p.z1)], [r3(p.x0), r3(p.z1)]];
@@ -142,4 +117,4 @@ writeFileSync('dist/ugc.json', JSON.stringify({
   ground: 'ground.json',
   files: {},
 }, null, 2));
-console.log(`dist/: near.glb (${mats.length} meshes), shell.glb, ground.json (${ground.cells.length} cells, ${ground.colliders.length} colliders), ugc.json`);
+console.log(`ground.json: ${ground.cells.length} cells, ${ground.colliders.length} colliders`);

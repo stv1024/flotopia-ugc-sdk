@@ -7,8 +7,8 @@
 //   act + focus        at the act point: the camera round the ball, a panel (tint, wobble, a button, leave),
 //                      the pointer pokes it or turns the view, the wheel zooms, B pokes, F leaves
 //   sleep              still for 2 s: it ticks only twice a second, till something happens
-import * as fc from "../../../assembly/fc";
-export { fc_alloc } from "../../../assembly/fc";
+import * as fc from "flotopia-ugc/assembly/fc";
+export { fc_alloc } from "flotopia-ugc/assembly/fc";
 
 const R: f32 = 2.0; // the ball's radius
 const CY: f32 = 2.6; // its centre's height (the deck is at 0.5)

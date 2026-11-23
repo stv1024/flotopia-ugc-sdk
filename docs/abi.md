@@ -138,7 +138,7 @@ collider in `ground.json`.
 
 | | near look | run time, more |
 |---|---|---|
-| draw calls (main pass) | 30 | 30 |
+| draw calls (main pass): a primitive of a node is 1, an instanced node's (EXT_mesh_gpu_instancing) too (its triangles count once an instance) | 30 | 30 |
 | triangles | 500 000 | 200 000 |
 | GPU memory (buffers, textures, targets) | 64 MB | 64 MB |
 | download (as stored) | shell 0.3 MB, the rest 16 MB | wasm + shaders 8 MB |
@@ -364,7 +364,7 @@ The host draws it in the game's style, in the player's language. A control gives
 A button's or `leave`'s `key` (one capital letter or digit: `"B"`, `"F"`) is **only the key cap drawn on it**.
 To make the key work, put its code in `focus.keys` (`"KeyB"`) and act on its `KEY` event (for `leave`: call
 `focus_end`). Esc needs nothing: it always leaves. Not valid (the item is dropped, or the panel refused):
-`"key": "Esc"`, `"key": "KeyB"`. A panel the host refuses is logged as an error (-1) and not shown.
+`"key": "Esc"`, `"key": "KeyB"`. A panel the host refuses is logged as an error (-1) and not shown; `flotopia-ugc check` says where its JSON breaks or which field is wrong.
 
 ### 3.8 Keep-out
 

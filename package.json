@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Make UGC islands for Flotopia (the floating city): the package format, the host interface, tools for coding agents.",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test \"test/**/*.test.mjs\""
   },
   "license": "MIT",
   "type": "module",

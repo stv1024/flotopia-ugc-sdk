@@ -1,6 +1,6 @@
 // The smallest island with code: a box turns on a round deck; at the act point the player makes it turn faster.
-import * as fc from "../../../assembly/fc";
-export { fc_alloc } from "../../../assembly/fc";
+import * as fc from "flotopia-ugc/assembly/fc";
+export { fc_alloc } from "flotopia-ugc/assembly/fc";
 
 let mesh: i32 = 0;
 let speed: f32 = 0.5;
@@ -52,10 +52,5 @@ export function fc_tick(inbox: usize, len: i32): void {
   for (let e = 0; e < f.count; e++) if (f.kind(e) == fc.Ev.ACT) { speed = speed > 3 ? 0.5 : speed * 2; fc.log("minimal: speed " + speed.toString()); }
   // the angle from the world clock: every player sees the same
   angle = f.time * <f64>speed;
-  const c = <f32>Math.cos(angle), s = <f32>Math.sin(angle);
-  m[0] = c; m[1] = 0; m[2] = -s; m[3] = 0;
-  m[4] = 0; m[5] = 1; m[6] = 0; m[7] = 0;
-  m[8] = s; m[9] = 0; m[10] = c; m[11] = 0;
-  m[12] = 0; m[13] = 2.6; m[14] = 0; m[15] = 1;
-  fc.meshMatrix(mesh, m);
+  fc.meshMatrix(mesh, fc.Mat4.compose(m, 0, 2.6, 0, <f32>(angle % (2 * Math.PI))));
 }

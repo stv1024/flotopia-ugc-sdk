@@ -1,0 +1,7 @@
+{
+  "steps": [
+    { "act": 0 },
+    { "wait": 500 },
+    { "shot": "spinning.jpg" }
+  ]
+}
