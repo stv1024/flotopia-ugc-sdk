@@ -27,7 +27,8 @@ node build.mjs
 # 2. write the files' hashes into ugc.json (after every build: the game refuses a file whose hash is not there)
 npx flotopia-ugc pack dist
 # 3. every check the game makes, a trial run of your code with a fake host, and warnings: act points out of reach,
-#    floors nobody can walk to (a door walled up), meshes past the footprint, files nothing uses, node names, panels
+#    floors nobody can walk to (a door walled up), meshes past the footprint, zero normals, files nothing uses, node
+#    names, panels
 npx flotopia-ugc check dist
 # 4. play it as a player, in the UGC browser: from arrive, walking, pressing F, into focus and out (play.json, below)
 npx flotopia-ugc play dist play.json
@@ -175,7 +176,8 @@ ground.json's colliders), a cell too high (a step over 0.62 m), no ground ahead.
 its code (not a fixed time; `--wait ms` more, default 1000), then takes the picture. `--hide-ui`: the page
 without its own UI (`&ui=0`; your focus panel stays). `--size 1600x900`. It exits 1 on a page error, a trap,
 the near look not shown, or a script failing, and prints the package's report (the code's state, the last
-trap's reason and wasm stack, the errors the host logged).
+trap's reason and wasm stack, the errors the host logged). A picture mostly one flat colour gets a `hint:` line
+(not a failure): a NaN in the frame (a zero normal: run `check`), the camera inside a mesh, or nothing in view.
 
 `--eval "<js>"`: JS in the page (a promise it gives is waited for: `"(async () => { ... })()"`). `--script
 file.mjs`: your module, run in Node with a helper `t` that drives the page, step by step, each printing the
@@ -217,6 +219,10 @@ Last, see it among the city: `https://stv1024.asia/flotopia/?ugc=http://localhos
   them). A PBR material takes `alphaMode` (BLEND by itself when its colour's alpha is under 1: glass), embedded
   PNG/JPEG textures (`map`, `emissiveMap`, `lib/png.mjs` makes PNGs), a second uv set (`uvs1`, `texCoord: 1`), and
   a mesh `instances` (EXT_mesh_gpu_instancing: many copies, one draw call): see the top of glb.mjs.
+  A normal that is zero (or not a number) turns a player's whole screen one colour (the shader's `normalize()`
+  gives NaN, the bloom spreads it): `writeGlb` mends it as it writes (the normal of its triangles) and warns, with
+  the mesh's name; `check` warns of them in any .glb. three.js's `computeVertexNormals()` makes them on triangles
+  of no area: mend those in your build.
   Use the city's materials (`'fc:paving'`, `'fc:plaster'`,
   …: docs/abi.md 2.2) where you can: the island then looks like part of the city, at night too. What each looks
   like, by day and night, its uv scale, and how bright an emissive should be: [`docs/city.md`](docs/city.md).
@@ -287,7 +293,8 @@ Rules that matter:
   twice, and compares (determinism); it checks every shader your code loads. It does not walk your ground and
   it does not see the picture.
 - Read `check`'s warnings: each is something a player would find (an act point nobody can reach, a floor walled
-  in, a stray file in the package). They come from ground.json on a grid: a hint where to look, not proof.
+  in, a stray file in the package, a zero normal). Those of ground.json come from it on a grid: a hint where to
+  look, not proof.
 - **Play it**: `flotopia-ugc play dist play.json` must pass, with steps from `arrive` through every door, up and
   down every stair, to every act point (`act`), into focus and out (`press: Escape`). Never `teleport` or `act()`
   to test (they go through walls and past the reach). `&debug=ground` in the UGC browser shows what blocks.
