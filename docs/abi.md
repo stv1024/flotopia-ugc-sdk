@@ -47,6 +47,8 @@ The host fetches with `credentials: 'omit'` and no referrer.
 {
   "schema": "flotopia-ugc/1",
   "title": { "zh": "鲸冻", "en": "Jelly Whale" },
+  "about": { "zh": "一头用果冻做的座头鲸。拖一拖它，软乎乎的。", "en": "A humpback whale made of jelly. Grab and pull it; it wobbles." },
+  "madeWith": [{ "harness": "Claude Code", "model": "Claude Opus 5.5" }],
   "footprint": { "shape": "circle", "r": 40 },
   "cover": "cover.webp",
   "shell": "shell.glb",
@@ -62,6 +64,8 @@ The host fetches with `credentials: 'omit'` and no referrer.
 |---|---|
 | `schema` | `"flotopia-ugc/1"` |
 | `title` | `{ zh, en }`, each 1–40 characters |
+| `about` | (optional) `{ zh?, en? }`, one or both languages, each 1–300 characters. A short description the city shows in the island's place card. Line breaks are allowed; bidirectional-override and control characters are not |
+| `madeWith` | (optional) a list of up to 8 entries `{ "harness": "Claude Code", "model"?: "Claude Opus 5.5" }`. The coding agent (harness) that made the island, and its model if known. The main one first. Shown in the place card |
 | `footprint` | `{ "shape": "circle", "r" }` or `{ "shape": "rect", "w", "d" }` (metres, centred on the origin; `w` along `x`, `d` along `z`). Everything of the island stays inside it (cells, colliders, meshes' bounds, keep-out). The platform gives you a slot this big |
 | `cover` | a PNG, JPEG or WebP, at most 1024 × 1024 |
 | `shell` | glTF binary, the far look: one material, vertex colours, at most 2 000 triangles, no textures |
