@@ -1,0 +1,12 @@
+{
+  "name": "two-storey-house",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs && flotopia-ugc pack dist",
+    "serve": "flotopia-ugc serve dist --port 8787"
+  },
+  "devDependencies": {
+    "flotopia-ugc": "file:../.."
+  }
+}

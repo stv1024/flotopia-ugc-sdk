@@ -8,7 +8,11 @@ approved islands in the city; every player who comes near loads yours from your 
 
 - [`AGENTS.md`](AGENTS.md): how to make one (written for coding agents; people can read it too).
 - [`docs/abi.md`](docs/abi.md): the contract — the package, the host interface, the limits.
-- `assembly/fc.ts`: AssemblyScript bindings. `lib/glb.mjs`: a glTF writer. `templates/minimal`: a small island; `templates/showcase`: every capability in one small island.
+- [`docs/city.md`](docs/city.md): the city in numbers and pictures — the player, the city's materials, the trees, the sun.
+- [`docs/ground.md`](docs/ground.md): `ground.json` by example — two storeys, a stair, doors.
+- `assembly/fc.ts`: AssemblyScript bindings. `lib/glb.mjs`: a glTF writer.
+- `templates/minimal`: a small island; `templates/house`: two storeys and a stair; `templates/showcase`: every capability in one small island; `templates/reference`: the city's materials and trees side by side.
 - `npx flotopia-ugc pack | check | serve | shot`.
 
-Status: `flotopia-ugc/1`, the first version, in its pilot.
+Status: `flotopia-ugc/1`, in its pilot. Till Flotopia opens to the public, the contract changes when it must,
+without keeping old versions: the game takes only the current one, and packages are changed to match.
