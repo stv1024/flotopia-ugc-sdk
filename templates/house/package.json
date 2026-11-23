@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs && flotopia-ugc pack dist",
-    "serve": "flotopia-ugc serve dist --port 8787"
+    "check": "flotopia-ugc check dist",
+    "serve": "flotopia-ugc serve dist --port 8787",
+    "play": "flotopia-ugc play dist play.json"
   },
   "devDependencies": {
     "flotopia-ugc": "file:../.."

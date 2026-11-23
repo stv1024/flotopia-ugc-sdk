@@ -1,0 +1,12 @@
+{
+  "steps": [
+    { "act": 0 },
+    { "focus": true },
+    { "press": "KeyB" },
+    { "wait": 300 },
+    { "shot": "focus.jpg" },
+    { "press": "Escape" },
+    { "focus": false },
+    { "walk": [0, 9] }
+  ]
+}

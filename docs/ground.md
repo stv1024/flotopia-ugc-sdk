@@ -162,7 +162,8 @@ The route, and what `player().pos` reads on the way (the UGC browser, 2026-11-23
 | (−3, 7.25) | onto the bench | 0.95 | the bench's collider |
 | (3, 7.5) from (−3, 7.5) | into the planter | 0.5 | stopped at x = 1.65 (2 − 0.35): blocked by collider 20 |
 
-The same as a script (run it in the browser's console, or with `shot --eval`: AGENTS.md):
+`templates/house/play.json` is this route for `flotopia-ugc play dist play.json` (AGENTS.md); it fails, saying
+which collider is in the way, if a door is walled up. The first part as JS for the browser's console:
 
 ```js
 const U = window.__floating.ugc;

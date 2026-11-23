@@ -3,6 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs && asc assembly/index.ts -O3 --runtime incremental --maximumMemory 1024 -o dist/island.wasm && node ../../bin/flotopia-ugc.mjs pack dist"
+    "build": "node build.mjs && asc assembly/index.ts -O3 --runtime incremental --maximumMemory 1024 -o dist/island.wasm && flotopia-ugc pack dist",
+    "check": "flotopia-ugc check dist",
+    "serve": "flotopia-ugc serve dist --port 8787",
+    "play": "flotopia-ugc play dist play.json"
+  },
+  "devDependencies": {
+    "assemblyscript": "^0.28.20",
+    "flotopia-ugc": "file:../.."
   }
 }
